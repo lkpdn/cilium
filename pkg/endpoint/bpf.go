@@ -493,7 +493,7 @@ func (e *Endpoint) regenerateBPF(owner Owner, currentDir, nextDir string, regenC
 	// pre-existing connections using that IP are now invalid.
 	if !e.ctCleaned {
 		go func() {
-			ipv4 := !option.Config.IPv4Disabled
+			ipv4 := option.Config.EnableIPv4
 			created := ctmap.Exists(nil, ipv4, true)
 			if e.ConntrackLocal() {
 				created = ctmap.Exists(e, ipv4, true)
@@ -802,7 +802,7 @@ func (e *Endpoint) DeleteMapsLocked() []error {
 
 	if e.ConntrackLocalLocked() {
 		// Remove local connection tracking maps
-		for _, m := range ctmap.LocalMaps(e, !option.Config.IPv4Disabled, true) {
+		for _, m := range ctmap.LocalMaps(e, option.Config.EnableIPv4, true) {
 			ctPath, err := m.Path()
 			if err == nil {
 				err = os.RemoveAll(ctPath)

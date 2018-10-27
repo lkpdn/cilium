@@ -1147,7 +1147,7 @@ func (d *Daemon) delK8sSVCs(svc loadbalancer.K8sServiceNamespace, svcInfo *loadb
 	}
 
 	isSvcIPv4 := svcInfo.FEIP.To4() != nil
-	if err := areIPsConsistent(!option.Config.IPv4Disabled, isSvcIPv4, svc, se); err != nil {
+	if err := areIPsConsistent(option.Config.EnableIPv4, isSvcIPv4, svc, se); err != nil {
 		return err
 	}
 
@@ -1211,7 +1211,7 @@ func (d *Daemon) addK8sSVCs(svc loadbalancer.K8sServiceNamespace, svcInfo *loadb
 	})
 
 	isSvcIPv4 := svcInfo.FEIP.To4() != nil
-	if err := areIPsConsistent(!option.Config.IPv4Disabled, isSvcIPv4, svc, se); err != nil {
+	if err := areIPsConsistent(option.Config.EnableIPv4, isSvcIPv4, svc, se); err != nil {
 		return err
 	}
 
@@ -1381,7 +1381,7 @@ func (d *Daemon) addIngressV1beta1(ingress *v1beta1.Ingress) error {
 	})
 
 	var host net.IP
-	if option.Config.IPv4Disabled {
+	if !option.Config.EnableIPv4 {
 		host = option.Config.HostV6Addr
 	} else {
 		host = option.Config.HostV4Addr
@@ -1563,7 +1563,7 @@ func (d *Daemon) deleteIngressV1beta1(ingress *v1beta1.Ingress) error {
 func (d *Daemon) missingK8sIngressV1Beta1(m versioned.Map) versioned.Map {
 	missing := versioned.NewMap()
 	var host net.IP
-	if option.Config.IPv4Disabled {
+	if !option.Config.EnableIPv4 {
 		host = option.Config.HostV6Addr
 	} else {
 		host = option.Config.HostV4Addr

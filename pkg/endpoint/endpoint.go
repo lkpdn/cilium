@@ -2766,7 +2766,7 @@ func (e *Endpoint) IsDisconnecting() bool {
 func (e *Endpoint) garbageCollectConntrack(filter *ctmap.GCFilter) {
 	var maps []*ctmap.Map
 
-	ipv4 := !option.Config.IPv4Disabled
+	ipv4 := option.Config.EnableIPv4
 	if e.ConntrackLocalLocked() {
 		maps = ctmap.LocalMaps(e, ipv4, true)
 	} else {

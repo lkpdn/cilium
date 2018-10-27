@@ -145,6 +145,19 @@ const (
 	// of MaxControllerInterval.
 	MaxCtrlIntervalName    = "max-controller-interval"
 	MaxCtrlIntervalNameEnv = "CILIUM_MAX_CONTROLLER_INTERVAL"
+
+	// EnableIPv4Name is the name of the option to enable IPv4 support
+	EnableIPv4Name    = "enable-ipv4"
+	EnableIPv4NameEnv = "CILIUM_ENABLE_IPV4"
+
+	// LegacyDisableIPv4Name is the name of the legacy option to disable
+	// IPv4 support
+	LegacyDisableIPv4Name    = "disable-ipv4"
+	LegacyDisableIPv4NameEnv = "DISABLE_IPV4"
+
+	// EnableIPv6Name is the name of the option to enable IPv6 support
+	EnableIPv6Name    = "enable-ipv6"
+	EnableIPv6NameEnv = "CILIUM_ENABLE_IPV6"
 )
 
 // Available option for daemonConfig.Tunnel
@@ -175,7 +188,6 @@ type daemonConfig struct {
 	ModePreFilter   string     // XDP mode, values: { native | generic }
 	HostV4Addr      net.IP     // Host v4 address of the snooping device
 	HostV6Addr      net.IP     // Host v6 address of the snooping device
-	IPv4Disabled    bool       // Disable IPv4 allocation
 	LBInterface     string     // Set with name of the interface to loadbalance packets from
 	Workloads       []string   // List of Workloads set by the user to used by cilium.
 
@@ -270,6 +282,12 @@ type daemonConfig struct {
 	// MaxControllerInterval is the maximum value for a controller's
 	// RunInterval. Zero means unlimited.
 	MaxControllerInterval int
+
+	// EnableIPv4 is true when IPv4 is enabled
+	EnableIPv4 bool
+
+	// EnableIPv6 is true when IPv6 is enabled
+	EnableIPv6 bool
 }
 
 var (
@@ -279,6 +297,8 @@ var (
 		IPv6ClusterAllocCIDR:     defaults.IPv6ClusterAllocCIDR,
 		IPv6ClusterAllocCIDRBase: defaults.IPv6ClusterAllocCIDRBase,
 		EnableHostIPRestore:      defaults.EnableHostIPRestore,
+		EnableIPv4:               defaults.EnableIPv4,
+		EnableIPv6:               defaults.EnableIPv6,
 	}
 )
 
@@ -356,6 +376,13 @@ func (c *daemonConfig) Validate() error {
 	default:
 		return fmt.Errorf("invalid tunnel mode '%s', valid modes = {%s}", c.Tunnel, GetTunnelModes())
 	}
+
+	if viper.IsSet(LegacyDisableIPv4Name) {
+		c.EnableIPv4 = !viper.GetBool(LegacyDisableIPv4Name)
+	} else {
+		c.EnableIPv4 = viper.GetBool(EnableIPv4Name)
+	}
+	c.EnableIPv6 = viper.GetBool(EnableIPv6Name)
 
 	c.ClusterName = viper.GetString(ClusterName)
 	c.ClusterID = viper.GetInt(ClusterIDName)

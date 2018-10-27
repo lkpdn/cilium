@@ -88,4 +88,10 @@ const (
 	// already been allocated and other nodes in the cluster have a chance
 	// to whitelist the new upcoming identity of the endpoint.
 	IdentityChangeGracePeriod = 25 * time.Second
+
+	// EnableIPv4 is the default value for IPv4 enablement
+	EnableIPv4 = true
+
+	// EnableIPv6 is the default value for IPv6 enablement
+	EnableIPv6 = true
 )
