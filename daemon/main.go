@@ -831,7 +831,7 @@ func runCiliumHealthEndpoint(d *Daemon) error {
 	// PingEndpoint will always fail the first time (initialization).
 	if err := health.PingEndpoint(); err != nil {
 		cleanupHealthEndpoint(d)
-		addressing := d.getNodeAddressing()
+		addressing := node.GetNodeAddressing()
 		return health.LaunchAsEndpoint(d, addressing)
 	}
 	return nil
