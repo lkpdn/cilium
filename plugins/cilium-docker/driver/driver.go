@@ -282,12 +282,8 @@ func (driver *driver) createEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	log.WithField(logfields.Request, logfields.Repr(&create)).Debug("Create endpoint request")
 
-	if create.Interface.Address == "" {
-		log.Warn("No IPv4 address provided in CreateEndpoint request")
-	}
-
-	if create.Interface.AddressIPv6 == "" {
-		sendError(w, "No IPv6 address provided (required)", http.StatusBadRequest)
+	if create.Interface.Address == "" && create.Interface.AddressIPv6 == "" {
+		sendError(w, "No IPv4 or IPv6 address provided (required)", http.StatusBadRequest)
 		return
 	}
 
