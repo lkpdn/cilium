@@ -76,3 +76,7 @@ type datapathRegenerationContext struct {
 	finalizeList   revert.FinalizeList
 	revertStack    revert.RevertStack
 }
+
+func (ctx *datapathRegenerationContext) prepareForDatapathRegeneration() {
+	ctx.ctCleaned = make(chan struct{})
+}
