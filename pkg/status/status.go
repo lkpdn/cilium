@@ -113,65 +113,78 @@ func (c *Collector) runBackgroundProbe(p *Probe) {
 // error is included when the probe took longer than WarningThreshold to
 // return.
 func (c *Collector) runProbe(p *Probe) {
+	var (
+		statusData       interface{}
+		err              error
+		warningThreshold = time.After(c.config.WarningThreshold)
+		hardTimeout      = false
+		probeReturned    = make(chan struct{}, 1)
+		ctx, cancel      = context.WithTimeout(context.Background(), c.config.FailureThreshold)
+		ctxTimeout       = make(chan struct{}, 1)
+	)
+
+	go func() {
+		statusData, err = p.Probe(ctx)
+		close(probeReturned)
+	}()
+
+	go func() {
+		// Once ctx.Done() has been closed, we notify the polling loop by
+		// sending to the ctxTimeout channel. We cannot close the channel, because
+		// otherwise the loop will always enter the "<-ctxTimeout" case.
+		<-ctx.Done()
+		ctxTimeout <- struct{}{}
+	}()
+
+	// This is a loop so that, when we hit a FailureThreshold, we still do
+	// not return until the probe returns. This is to ensure the same probe
+	// does not run again while it is blocked.
 	for {
-		var (
-			statusData       interface{}
-			err              error
-			warningThreshold = time.After(c.config.WarningThreshold)
-			hardTimeout      = false
-			probeReturned    = make(chan struct{}, 1)
-			ctx, cancel      = context.WithTimeout(context.Background(), c.config.FailureThreshold)
-		)
+		select {
+		case <-c.stop:
+			// Collector was closed. The probe will
+			// complete in the background and won't be
+			// restarted again.
+			cancel()
+			return
 
-		go func() {
-			statusData, err = p.Probe(ctx)
-			close(probeReturned)
-		}()
+		case <-warningThreshold:
+			// Publish warning and continue waiting for probe
+			p.Status(Status{
+				Err:          fmt.Errorf("No response from %s probe within %f seconds", p.Name, c.config.WarningThreshold.Seconds()),
+				StaleWarning: true,
+			})
 
-		// This is a loop so that, when we hit a FailureThreshold, we still do
-		// not return until the probe returns. This is to ensure the same probe
-		// does not run again while it is blocked.
-		for {
-			select {
-			case <-c.stop:
-				// Collector was closed. The probe will
-				// complete in the background and won't be
-				// restarted again.
-				cancel()
-				return
-
-			case <-warningThreshold:
-				// Publish warning and continue waiting for probe
-				p.Status(Status{
-					Err:          fmt.Errorf("No response from %s probe within %f seconds", p.Name, c.config.WarningThreshold.Seconds()),
-					StaleWarning: true,
-				})
-
-			case <-probeReturned:
-				// The probe completed and we can return from runProbe
-				switch {
-				case hardTimeout:
-					// FailureThreshold was already
-					// reached. Keep the failure error
-					// message
-				case err != nil:
-					p.Status(Status{Err: err})
-				default:
-					p.Status(Status{Data: statusData})
-				}
-
-				cancel()
-				return
-
-			case <-ctx.Done():
-				// We have timed out. Report a status and mark that we timed out so we
-				// do not emit status later.
-				p.Status(Status{
-					Err:          fmt.Errorf("No response from %s probe within %f seconds", p.Name, c.config.WarningThreshold.Seconds()),
-					StaleWarning: true,
-				})
-				hardTimeout = true
+		case <-probeReturned:
+			// The probe completed and we can return from runProbe
+			switch {
+			case hardTimeout:
+				// FailureThreshold was already
+				// reached. Keep the failure error
+				// message
+			case err != nil:
+				p.Status(Status{Err: err})
+			default:
+				p.Status(Status{Data: statusData})
 			}
+
+			cancel()
+			return
+
+		case <-ctxTimeout:
+			// We have timed out. Report a status and mark that we timed out so we
+			// do not emit status later.
+			p.Status(Status{
+				Err:          fmt.Errorf("No response from %s probe within %f seconds", p.Name, c.config.FailureThreshold.Seconds()),
+				StaleWarning: true,
+			})
+			hardTimeout = true
 		}
+	}
+}
+
+func (c *Collector) updateProbeStatus(p *Probe, err error, staleWarning bool, data interface{}) {
+	// TODO(brb) add mutex
+	if staleWarning {
 	}
 }

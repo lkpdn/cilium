@@ -27,7 +27,9 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-type StatusTestSuite struct{}
+type StatusTestSuite struct {
+	config Configuration
+}
 
 var _ = Suite(&StatusTestSuite{})
 
@@ -35,13 +37,13 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-var (
-	config = Configuration{
+func (s *StatusTestSuite) SetUpTest(c *C) {
+	s.config = Configuration{
 		Interval:         10 * time.Millisecond,
 		WarningThreshold: 20 * time.Millisecond,
 		FailureThreshold: 80 * time.Millisecond,
 	}
-)
+}
 
 func (s *StatusTestSuite) TestCollectorStaleWarning(c *C) {
 	var ok uint64
@@ -49,7 +51,7 @@ func (s *StatusTestSuite) TestCollectorStaleWarning(c *C) {
 	m := []Probe{
 		{
 			Probe: func(ctx context.Context) (interface{}, error) {
-				time.Sleep(config.WarningThreshold * 2)
+				time.Sleep(s.config.WarningThreshold * 2)
 				return nil, nil
 			},
 			Status: func(status Status) {
@@ -61,7 +63,7 @@ func (s *StatusTestSuite) TestCollectorStaleWarning(c *C) {
 		},
 	}
 
-	collector := NewCollector(m, config)
+	collector := NewCollector(m, s.config)
 	defer collector.Close()
 
 	// wait for the warning timeout to be reached twice
@@ -76,19 +78,19 @@ func (s *StatusTestSuite) TestCollectorFailureTimeout(c *C) {
 	m := []Probe{
 		{
 			Probe: func(ctx context.Context) (interface{}, error) {
-				time.Sleep(config.FailureThreshold * 2)
+				time.Sleep(s.config.FailureThreshold * 2)
 				return nil, nil
 			},
 			Status: func(status Status) {
-				if !status.StaleWarning && status.Data == nil && status.Err != nil {
+				if status.StaleWarning && status.Data == nil && status.Err != nil {
 					atomic.AddUint64(&ok, 1)
-
 				}
 			},
 		},
 	}
 
-	collector := NewCollector(m, config)
+	s.config.WarningThreshold = 10 * time.Second // to avoid hitting the warning threshold
+	collector := NewCollector(m, s.config)
 	defer collector.Close()
 
 	// wait for the failure timeout to kick in
@@ -115,7 +117,7 @@ func (s *StatusTestSuite) TestCollectorSuccess(c *C) {
 		},
 	}
 
-	collector := NewCollector(m, config)
+	collector := NewCollector(m, s.config)
 	defer collector.Close()
 
 	// wait for the probe to succeed 3 times
