@@ -47,6 +47,14 @@ type PolicyMapStateEntry struct {
 	ProxyPort uint16
 }
 
+// DetermineAllowFromWorld determines communication from world should be
+// allowed, based on legacy Cilium 1.0 behaviour. It inserts the PolicyKey
+// corresponding to the world in the desiredPolicyKeys if the legacy mode is
+// enabled.
+//
+// This must be run after DetermineAllowLocalhost().
+//
+// For more information, see https://cilium.link/host-vs-world
 func (keys PolicyMapState) DetermineAllowFromWorld() {
 
 	_, localHostAllowed := keys[localHostKey]
