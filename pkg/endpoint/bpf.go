@@ -305,7 +305,7 @@ func (e *Endpoint) addNewRedirectsFromMap(owner Owner, m policy.L4PolicyMap, des
 	var revertStack revert.RevertStack
 	var updatedStats []*models.ProxyStatistics
 	insertedDesiredMapState := make(map[policykey.PolicyKey]struct{})
-	updatedDesiredMapState := make(PolicyMapState)
+	updatedDesiredMapState := make(policy.PolicyMapState)
 
 	for _, l4 := range m {
 		if l4.IsRedirect() {
@@ -364,7 +364,7 @@ func (e *Endpoint) addNewRedirectsFromMap(owner Owner, m policy.L4PolicyMap, des
 					insertedDesiredMapState[keyFromFilter] = struct{}{}
 				}
 
-				e.desiredMapState[keyFromFilter] = PolicyMapStateEntry{ProxyPort: redirectPort}
+				e.desiredMapState[keyFromFilter] = policy.PolicyMapStateEntry{ProxyPort: redirectPort}
 			}
 
 		}
@@ -594,7 +594,7 @@ func (e *Endpoint) regenerateBPF(owner Owner, currentDir, nextDir string, regenC
 
 		// Also reset the in-memory state of the realized state as the
 		// BPF map content is guaranteed to be empty right now.
-		e.realizedMapState = make(PolicyMapState)
+		e.realizedMapState = make(policy.PolicyMapState)
 	}
 
 	// Set up a context to wait for proxy completions.
@@ -966,18 +966,6 @@ func (e *Endpoint) GetBPFValue() (*lxcmap.EndpointInfo, error) {
 	return info, nil
 }
 
-// PolicyMapState is a state of a policy map.
-type PolicyMapState map[policykey.PolicyKey]PolicyMapStateEntry
-
-// PolicyMapStateEntry is the configuration associated with a PolicyKey in a
-// PolicyMapState. This is a minimized version of policymap.PolicyEntry.
-type PolicyMapStateEntry struct {
-	// The proxy port, in host byte order.
-	// If 0 (default), there is no proxy redirection for the corresponding
-	// PolicyKey.
-	ProxyPort uint16
-}
-
 // syncPolicyMap attempts to synchronize the PolicyMap for this endpoint to
 // contain the set of PolicyKeys represented by the endpoint's desiredMapState.
 // It checks the current contents of the endpoint's PolicyMap and deletes any
@@ -990,11 +978,11 @@ type PolicyMapStateEntry struct {
 func (e *Endpoint) syncPolicyMap() error {
 
 	if e.realizedMapState == nil {
-		e.realizedMapState = make(PolicyMapState)
+		e.realizedMapState = make(policy.PolicyMapState)
 	}
 
 	if e.desiredMapState == nil {
-		e.desiredMapState = make(PolicyMapState)
+		e.desiredMapState = make(policy.PolicyMapState)
 	}
 
 	if e.PolicyMap == nil {
