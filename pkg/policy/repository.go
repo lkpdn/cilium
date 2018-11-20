@@ -22,9 +22,11 @@ import (
 	"github.com/cilium/cilium/pkg/identity/cache"
 	"github.com/cilium/cilium/pkg/labels"
 	"github.com/cilium/cilium/pkg/lock"
+	"github.com/cilium/cilium/pkg/maps/policymap/policykey"
 	"github.com/cilium/cilium/pkg/metrics"
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/policy/api"
+	"github.com/cilium/cilium/pkg/policy/trafficdirection"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -827,6 +829,29 @@ func (p *Repository) ResolvePolicy(id uint16, labels labels.LabelArray, policyOw
 
 		calculatedPolicy.CIDRPolicy.Ingress = newCIDRIngressPolicy.Ingress
 		calculatedPolicy.L4Policy.Ingress = newL4IngressPolicy.Ingress
+
+		for identity, labels := range identityCache {
+			ingressCtx.From = labels
+			egressCtx.To = labels
+
+			ingressAccess := matchingRules.canReachIngressRLocked(&ingressCtx)
+			if ingressAccess == api.Allowed {
+				keyToAdd := policykey.PolicyKey{
+					Identity:         identity.Uint32(),
+					TrafficDirection: trafficdirection.Ingress.Uint8(),
+				}
+				calculatedPolicy.PolicyMapState[keyToAdd] = PolicyMapStateEntry{}
+			}
+		}
+	} else {
+		// Allow all identities
+		for identity := range identityCache {
+			keyToAdd := policykey.PolicyKey{
+				Identity:         identity.Uint32(),
+				TrafficDirection: trafficdirection.Ingress.Uint8(),
+			}
+			calculatedPolicy.PolicyMapState[keyToAdd] = PolicyMapStateEntry{}
+		}
 	}
 
 	if egressEnabled {
@@ -842,6 +867,28 @@ func (p *Repository) ResolvePolicy(id uint16, labels labels.LabelArray, policyOw
 
 		calculatedPolicy.CIDRPolicy.Egress = newCIDREgressPolicy.Egress
 		calculatedPolicy.L4Policy.Egress = newL4EgressPolicy.Egress
+
+		for identity, labels := range identityCache {
+			egressCtx.To = labels
+
+			egressAccess := matchingRules.canReachEgressRLocked(&egressCtx)
+			if egressAccess == api.Allowed {
+				keyToAdd := policykey.PolicyKey{
+					Identity:         identity.Uint32(),
+					TrafficDirection: trafficdirection.Egress.Uint8(),
+				}
+				calculatedPolicy.PolicyMapState[keyToAdd] = PolicyMapStateEntry{}
+			}
+		}
+	} else {
+		// Allow all identities
+		for identity := range identityCache {
+			keyToAdd := policykey.PolicyKey{
+				Identity:         identity.Uint32(),
+				TrafficDirection: trafficdirection.Egress.Uint8(),
+			}
+			calculatedPolicy.PolicyMapState[keyToAdd] = PolicyMapStateEntry{}
+		}
 	}
 
 	calculatedPolicy.computeDesiredL4PolicyMapEntries(identityCache)
