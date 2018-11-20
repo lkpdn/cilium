@@ -171,8 +171,10 @@ func (p *Repository) wildcardL3L4Rules(ctx *SearchContext, ingress bool, l4Polic
 	// Duplicate L3-only rules into wildcard L7 rules.
 	for _, r := range p.rules {
 		if ingress {
-			if !r.EndpointSelector.Matches(ctx.To) {
-				continue
+			if !ctx.RulesSelect {
+				if !r.EndpointSelector.Matches(ctx.To) {
+					continue
+				}
 			}
 			for _, rule := range r.Ingress {
 				// Non-label-based rule. Ignore.
@@ -201,8 +203,10 @@ func (p *Repository) wildcardL3L4Rules(ctx *SearchContext, ingress bool, l4Polic
 				}
 			}
 		} else {
-			if !r.EndpointSelector.Matches(ctx.From) {
-				continue
+			if !ctx.RulesSelect {
+				if !r.EndpointSelector.Matches(ctx.From) {
+					continue
+				}
 			}
 			for _, rule := range r.Egress {
 				// Non-label-based rule. Ignore.
