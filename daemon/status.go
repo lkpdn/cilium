@@ -82,103 +82,47 @@ func (d *Daemon) getNodeStatus() *models.ClusterStatus {
 }
 
 func (h *getHealthz) Handle(params GetHealthzParams) middleware.Responder {
-	d := h.daemon
+	sr := h.daemon.getStatus()
 
-	var stale map[string]strfmt.DateTime
+	return NewGetHealthzOK().WithPayload(&sr)
+}
+
+func (d *Daemon) getStatus() models.StatusResponse {
 	staleProbes := d.statusCollector.GetStaleProbes()
-	isStale := len(staleProbes) > 0
-	if isStale {
-		stale = make(map[string]strfmt.DateTime)
-		for probe, startTime := range staleProbes {
-			stale[probe] = strfmt.DateTime(startTime)
-		}
+	stale := make(map[string]strfmt.DateTime, len(staleProbes))
+	for probe, startTime := range staleProbes {
+		stale[probe] = strfmt.DateTime(startTime)
 	}
 
 	d.statusCollectMutex.RLock()
 	defer d.statusCollectMutex.RUnlock()
 
 	sr := d.statusResponse
+	sr.Stale = stale
 
-	if isStale {
-		sr.Stale = stale
+	switch {
+	case len(sr.Stale) > 0:
 		sr.Cilium = &models.Status{
 			State: models.StatusStateWarning,
 			Msg:   "Stale status data",
 		}
-	} else {
-		if sr.Kvstore != nil && sr.Kvstore.State != models.StatusStateOk {
-			sr.Cilium = &models.Status{
-				State: sr.Kvstore.State,
-				Msg:   "Kvstore service is not ready",
-			}
-		} else if sr.ContainerRuntime != nil && sr.ContainerRuntime.State != models.StatusStateOk {
-			sr.Cilium = &models.Status{
-				State: sr.ContainerRuntime.State,
-				Msg:   "Container runtime is not ready",
-			}
-		} else if k8s.IsEnabled() && sr.Kubernetes != nil && sr.Kubernetes.State != models.StatusStateOk {
-			sr.Cilium = &models.Status{
-				State: sr.Kubernetes.State,
-				Msg:   "Kubernetes service is not ready",
-			}
-		} else {
-			sr.Cilium = &models.Status{State: models.StatusStateOk, Msg: "OK"}
-		}
-	}
-
-	return NewGetHealthzOK().WithPayload(&sr)
-}
-
-// TODO(brb) rm
-func (d *Daemon) getStatus() models.StatusResponse {
-	sr := models.StatusResponse{
-		Controllers: controller.GetGlobalStatus(),
-	}
-
-	checkLocks(d)
-
-	if info, err := kvstore.Client().Status(); err != nil {
-		sr.Kvstore = &models.Status{State: models.StatusStateFailure, Msg: fmt.Sprintf("Err: %s - %s", err, info)}
-	} else {
-		sr.Kvstore = &models.Status{State: models.StatusStateOk, Msg: info}
-	}
-
-	sr.ContainerRuntime = workloads.Status()
-
-	sr.Kubernetes = d.getK8sStatus()
-
-	// Note: A final, overriding, check is made in Handle to check the staleness
-	// of this data, and will clobber these messages if set.
-	if sr.Kvstore.State != models.StatusStateOk {
+	case sr.Kvstore != nil && sr.Kvstore.State != models.StatusStateOk:
 		sr.Cilium = &models.Status{
 			State: sr.Kvstore.State,
 			Msg:   "Kvstore service is not ready",
 		}
-	} else if sr.ContainerRuntime.State != models.StatusStateOk {
+	case sr.ContainerRuntime != nil && sr.ContainerRuntime.State != models.StatusStateOk:
 		sr.Cilium = &models.Status{
 			State: sr.ContainerRuntime.State,
 			Msg:   "Container runtime is not ready",
 		}
-	} else if k8s.IsEnabled() && sr.Kubernetes.State != models.StatusStateOk {
+	case k8s.IsEnabled() && sr.Kubernetes != nil && sr.Kubernetes.State != models.StatusStateOk:
 		sr.Cilium = &models.Status{
 			State: sr.Kubernetes.State,
 			Msg:   "Kubernetes service is not ready",
 		}
-	} else {
+	default:
 		sr.Cilium = &models.Status{State: models.StatusStateOk, Msg: "OK"}
-	}
-
-	sr.IPAM = d.DumpIPAM()
-	sr.NodeMonitor = d.nodeMonitor.State()
-
-	sr.Cluster = d.getNodeStatus()
-
-	if d.ciliumHealth != nil {
-		sr.Cluster.CiliumHealth = d.ciliumHealth.GetStatus()
-	}
-
-	if d.l7Proxy != nil {
-		sr.Proxy = d.l7Proxy.GetStatusModel()
 	}
 
 	return sr
