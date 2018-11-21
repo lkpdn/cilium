@@ -181,7 +181,7 @@ func (c *Collector) runProbe(p *Probe) {
 		case <-warningThreshold:
 			// Publish warning and continue waiting for probe
 			// TODO(brb) "within %f seconds" might confuse users
-			staleErr := fmt.Errorf("No response from %s probe within %f seconds",
+			staleErr := fmt.Errorf("No response from %s probe within %v seconds",
 				p.Name, c.config.WarningThreshold.Seconds())
 			c.updateProbeStatus(p, nil, true, staleErr)
 
@@ -204,7 +204,7 @@ func (c *Collector) runProbe(p *Probe) {
 		case <-ctxTimeout:
 			// We have timed out. Report a status and mark that we timed out so we
 			// do not emit status later.
-			staleErr := fmt.Errorf("No response from %s probe within %f seconds",
+			staleErr := fmt.Errorf("No response from %s probe within %v seconds",
 				p.Name, c.config.FailureThreshold.Seconds())
 			c.updateProbeStatus(p, nil, true, staleErr)
 			hardTimeout = true
