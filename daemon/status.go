@@ -382,6 +382,23 @@ func (d *Daemon) startStatusCollector() {
 				}
 			},
 		},
+		{
+			Name: "controllers",
+			Probe: func(ctx context.Context) (interface{}, error) {
+				return controller.GetGlobalStatus(), nil
+			},
+			Status: func(status status.Status) {
+				d.statusCollectMutex.Lock()
+				defer d.statusCollectMutex.Unlock()
+
+				// ControllerStatuses has no way to report errors
+				if status.Err == nil {
+					if s, ok := status.Data.(models.ControllerStatuses); ok {
+						d.statusResponse.Controllers = s
+					}
+				}
+			},
+		},
 	}
 
 	d.statusCollector = status.NewCollector(probes, status.Configuration{
