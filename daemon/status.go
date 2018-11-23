@@ -139,7 +139,7 @@ func (d *Daemon) startStatusCollector() {
 				option.Config.ConfigPatchMutex.Unlock()
 				return nil, nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 				// FIXME we have no field for the lock status
@@ -150,7 +150,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return kvstore.Client().Status()
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				state := models.StatusStateOk
 				msg := ""
 
@@ -181,7 +181,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return workloads.Status(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 
@@ -203,7 +203,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return d.getK8sStatus(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 
@@ -224,7 +224,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return d.DumpIPAM(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 
@@ -241,7 +241,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return d.nodeMonitor.State(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 
@@ -258,7 +258,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return d.getNodeStatus(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 
@@ -283,7 +283,7 @@ func (d *Daemon) startStatusCollector() {
 				}
 				return d.ciliumHealth.GetStatus(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				if d.ciliumHealth == nil {
 					return
 				}
@@ -314,7 +314,7 @@ func (d *Daemon) startStatusCollector() {
 				}
 				return d.l7Proxy.GetStatusModel(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 
@@ -331,7 +331,7 @@ func (d *Daemon) startStatusCollector() {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return controller.GetGlobalStatus(), nil
 			},
-			Status: func(status status.Status) {
+			OnStatusUpdate: func(status status.Status) {
 				d.statusCollectMutex.Lock()
 				defer d.statusCollectMutex.Unlock()
 

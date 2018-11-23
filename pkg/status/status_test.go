@@ -54,7 +54,7 @@ func (s *StatusTestSuite) TestCollectorStaleWarning(c *C) {
 				time.Sleep(s.config.WarningThreshold * 2)
 				return nil, nil
 			},
-			Status: func(status Status) {
+			OnStatusUpdate: func(status Status) {
 				if status.StaleWarning && status.Data == nil && status.Err != nil {
 					atomic.AddUint64(&ok, 1)
 
@@ -81,7 +81,7 @@ func (s *StatusTestSuite) TestCollectorFailureTimeout(c *C) {
 				time.Sleep(s.config.FailureThreshold * 2)
 				return nil, nil
 			},
-			Status: func(status Status) {
+			OnStatusUpdate: func(status Status) {
 				if status.StaleWarning && status.Data == nil && status.Err != nil {
 					atomic.AddUint64(&ok, 1)
 				}
@@ -107,7 +107,7 @@ func (s *StatusTestSuite) TestCollectorSuccess(c *C) {
 			Probe: func(ctx context.Context) (interface{}, error) {
 				return "testData", nil
 			},
-			Status: func(status Status) {
+			OnStatusUpdate: func(status Status) {
 				if !status.StaleWarning && status.Data != nil && status.Err == nil {
 					if s, isString := status.Data.(string); isString && s == "testData" {
 						atomic.AddUint64(&ok, 1)

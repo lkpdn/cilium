@@ -46,8 +46,8 @@ type Probe struct {
 
 	Probe func(ctx context.Context) (interface{}, error)
 
-	// Status is called whenever the status of the probe changes
-	Status func(status Status)
+	// OnStatusUpdate is called whenever the status of the probe changes
+	OnStatusUpdate func(status Status)
 }
 
 type Collector struct {
@@ -223,5 +223,5 @@ func (c *Collector) updateProbeStatus(p *Probe, data interface{}, staleWarning b
 	c.Unlock()
 
 	// Notify the probe about status update
-	p.Status(Status{Err: err, Data: data, StaleWarning: staleWarning})
+	p.OnStatusUpdate(Status{Err: err, Data: data, StaleWarning: staleWarning})
 }
