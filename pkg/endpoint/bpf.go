@@ -26,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/cilium/cilium/api/v1/models"
@@ -57,6 +58,16 @@ const (
 	// EndpointGenerationTimeout specifies timeout for proxy completion context
 	EndpointGenerationTimeout = 55 * time.Second
 )
+
+// BPFConfigMapPath returns the path to the BPF config map of endpoint.
+func (e *Endpoint) BPFConfigMapPath() string {
+	return bpf.MapPath(e.BPFConfigMapName())
+}
+
+// BPFConfigMapName returns the name of the config map for endpoint.
+func (e *Endpoint) BPFConfigMapName() string {
+	return bpfconfig.MapNamePrefix + strconv.Itoa(int(e.ID))
+}
 
 type getBPFDataCallback func() (s6, s4 []int)
 
