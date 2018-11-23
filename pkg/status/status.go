@@ -20,12 +20,19 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/pkg/lock"
+	"github.com/cilium/cilium/pkg/logging"
+	"github.com/cilium/cilium/pkg/logging/logfields"
 )
 
 const (
 	defaultInterval         = 5 * time.Second
 	defaultFailureThreshold = time.Minute
 	defaultWarningThreshold = 20 * time.Second
+	subsystem               = "status"
+)
+
+var (
+	log = logging.DefaultLogger.WithField(logfields.LogSubsys, subsystem)
 )
 
 type Status struct {
@@ -92,7 +99,7 @@ func NewCollector(probes []Probe, config Configuration) *Collector {
 }
 
 // Close exits all probes and shuts down the collector
-// TODO(brb): call it when daemon exits.
+// TODO(brb): call it when daemon exits (after GH#6248).
 func (c *Collector) Close() {
 	close(c.stop)
 }
@@ -180,7 +187,6 @@ func (c *Collector) runProbe(p *Probe) {
 
 		case <-warningThreshold:
 			// Publish warning and continue waiting for probe
-			// TODO(brb) "within %f seconds" might confuse users
 			staleErr := fmt.Errorf("No response from %s probe within %v seconds",
 				p.Name, c.config.WarningThreshold.Seconds())
 			c.updateProbeStatus(p, nil, true, staleErr)
@@ -215,12 +221,18 @@ func (c *Collector) runProbe(p *Probe) {
 func (c *Collector) updateProbeStatus(p *Probe, data interface{}, staleWarning bool, err error) {
 	// Update stale status of the probe
 	c.Lock()
+	startTime := c.probeStartTime[p.Name]
 	if staleWarning {
 		c.staleProbes[p.Name] = struct{}{}
 	} else {
 		delete(c.staleProbes, p.Name)
 	}
 	c.Unlock()
+
+	if staleWarning {
+		log.WithField(logfields.StartTime, startTime).
+			Warn(fmt.Sprintf("Timeout while waiting for %q probe", p.Name))
+	}
 
 	// Notify the probe about status update
 	p.OnStatusUpdate(Status{Err: err, Data: data, StaleWarning: staleWarning})
