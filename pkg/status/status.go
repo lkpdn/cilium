@@ -84,8 +84,8 @@ func NewCollector(probes []Probe, config Configuration) *Collector {
 		c.config.WarningThreshold = defaultWarningThreshold
 	}
 
-	for _, probe := range probes {
-		go func(p Probe) { c.runBackgroundProbe(&p) }(probe)
+	for i := range probes {
+		c.spawnProbe(&probes[i])
 	}
 
 	return c
@@ -112,10 +112,10 @@ func (c *Collector) GetStaleProbes() map[string]time.Time {
 	return probes
 }
 
-// runBackgroundProbe continuously calls Probe() and Status(), waiting for the
+// spawnProbe continuously calls Probe() and Status(), waiting for the
 // defined interval between invocations, until Collector.Close() is called.
 // Probe() is called without wait on the when first calling this function.
-func (c *Collector) runBackgroundProbe(p *Probe) {
+func (c *Collector) spawnProbe(p *Probe) {
 	go func() {
 		for {
 			c.runProbe(p)
