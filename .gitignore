@@ -68,3 +68,6 @@ test/bpf/_results
 
 # generated from make targets
 *.ok
+
+# private use only
+_out

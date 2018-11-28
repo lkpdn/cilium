@@ -64,8 +64,12 @@ PRIV_TEST_PKGS ?= $(shell grep --include='*.go' -ril '+build privileged_tests' |
 tests-privileged:
 	# cilium-map-migrate is a dependency of some unit tests.
 	$(MAKE) -C bpf cilium-map-migrate
+	$(QUIET) echo "mode: count" > coverage-all-tmp.out
+	$(QUIET) echo "mode: count" > coverage.out
 	$(QUIET)$(foreach pkg,$(PRIV_TEST_PKGS),\
-		$(GO) test $(TEST_LDFLAGS) github.com/cilium/cilium/$(pkg) $(GOTEST_PRIV_OPTS) || exit 1;)
+		$(GO) test $(TEST_LDFLAGS) github.com/cilium/cilium/$(pkg) $(GOTEST_PRIV_OPTS) $(GOTEST_COVER_OPTS) || exit 1; \
+		tail -n +2 coverage.out >> coverage-all-tmp.out;)
+	$(MAKE) generate-cov
 
 start-kvstores:
 	@echo Starting key-value store containers...
@@ -163,7 +167,7 @@ install-container:
 GIT_VERSION: .git
 	echo "$(GIT_VERSION)" >GIT_VERSION
 
-docker-image: clean docker-image-no-clean docker-operator-image
+docker-image: clean docker-image-no-clean docker-operator-image docker-image-init
 
 docker-image-no-clean: GIT_VERSION
 	$(CONTAINER_ENGINE_FULL) build \
@@ -171,6 +175,7 @@ docker-image-no-clean: GIT_VERSION
 		--build-arg V=${V} \
 		--build-arg LIBNETWORK_PLUGIN=${LIBNETWORK_PLUGIN} \
 		-t "cilium/cilium:$(DOCKER_IMAGE_TAG)" .
+	$(CONTAINER_ENGINE_FULL) save -o ./_out/cilium.${DOCKER_IMAGE_TAG}.tar "cilium/cilium:$(DOCKER_IMAGE_TAG)"
 	$(QUIET)echo "Push like this when ready:"
 	$(QUIET)echo "${CONTAINER_ENGINE} push cilium/cilium:$(DOCKER_IMAGE_TAG)"
 
@@ -185,17 +190,22 @@ dev-docker-image: GIT_VERSION
 
 docker-operator-image: GIT_VERSION
 	$(CONTAINER_ENGINE_FULL) build --build-arg LOCKDEBUG=${LOCKDEBUG} -f cilium-operator.Dockerfile -t "cilium/operator:$(DOCKER_IMAGE_TAG)" .
+	${CONTAINER_ENGINE_FULL} save -o ./_out/cilium-operator.latest.tar "cilium/operator:$(DOCKER_IMAGE_TAG)"
 	$(QUIET)echo "Push like this when ready:"
 	$(QUIET)echo "docker push cilium/operator:$(DOCKER_IMAGE_TAG)"
 
 docker-image-init:
 	$(QUIET)cd contrib/packaging/docker && ${CONTAINER_ENGINE} build -t "cilium/cilium-init:$(UTC_DATE)" -f Dockerfile.init .
+	${CONTAINER_ENGINE_FULL} save -o ./_out/cilium-init.$(UTC_DATE).tar "cilium/cilium-init:$(UTC_DATE)"
 
 docker-image-runtime:
 	cd contrib/packaging/docker && ${CONTAINER_ENGINE} build -t "cilium/cilium-runtime:$(UTC_DATE)" -f Dockerfile.runtime .
 
 docker-image-builder:
 	${CONTAINER_ENGINE_FULL} build -t "cilium/cilium-builder:$(UTC_DATE)" -f Dockerfile.builder .
+
+out-dir:
+	@mkdir -p ./_out
 
 build-deb:
 	$(MAKE) -C ./contrib/packaging/deb
